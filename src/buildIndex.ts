@@ -14,7 +14,7 @@ interface PluginItem {
 
 async function buildStaticSite() {
   const publicDir = path.join(__dirname, '../public');
-  const publishDir = path.join(__dirname, '../publish');
+  const publishDir = path.join(__dirname, '../publish/down');
   
   // 清空并重建 publish 目录
   if (fs.existsSync(publishDir)) {
