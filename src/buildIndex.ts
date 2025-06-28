@@ -3,7 +3,6 @@ import path from 'path';
 
 interface VersionInfo {
   version: string;
-  info?: any;
   files: string[];
 }
 
@@ -14,7 +13,7 @@ interface PluginItem {
 
 async function buildStaticSite() {
   const publicDir = path.join(__dirname, '../public');
-  const publishDir = path.join(__dirname, '../publish/down');
+  const publishDir = path.join(__dirname, '../publish');
   
   // 清空并重建 publish 目录
   if (fs.existsSync(publishDir)) {
@@ -23,7 +22,7 @@ async function buildStaticSite() {
   fs.mkdirSync(publishDir, { recursive: true });
 
   // 1. 复制所有静态文件
-  copyFolderRecursiveSync(publicDir, publishDir);
+  copyFolderRecursiveSync(publicDir, path.join(publishDir,"down"));
 
   // 2. 生成静态 API 文件
   const categories = ['plugin', 'skin', 'code'];
@@ -42,8 +41,9 @@ async function buildStaticSite() {
       path.join(apiDir, `${category}.json`),
       JSON.stringify(items.map(item => ({
         name: item.name,
+        description: getItemDescription(categoryDir, item.name), // 添加项目描述
         versions: item.versions.map(v => v.version)
-      })))
+      })), null, 2) // 添加格式化使JSON更易读
     );
 
     // 生成每个项目的版本索引
@@ -56,40 +56,34 @@ async function buildStaticSite() {
         path.join(itemApiDir, 'index.json'),
         JSON.stringify({
           name: item.name,
+          description: getItemDescription(categoryDir, item.name), // 添加项目描述
           versions: item.versions.map(v => ({
             version: v.version,
-            info: v.info,
             files: v.files.map(f => ({
               name: f,
               downloadUrl: `/down/${category}/${item.name}/${v.version}/${f}`
             }))
           }))
-        })
+        }, null, 2)
       );
-
-      // 每个版本的详情
-      for (const version of item.versions) {
-        fs.writeFileSync(
-          path.join(itemApiDir, `${version.version}.json`),
-          JSON.stringify({
-            name: item.name,
-            version: version.version,
-            info: version.info,
-            files: version.files.map(f => ({
-              name: f,
-              downloadUrl: `/down/${category}/${item.name}/${version.version}/${f}`,
-              size: fs.statSync(
-                path.join(categoryDir, item.name, version.version, f)
-              ).size
-            }))
-          })
-        );
-      }
     }
   }
 
   console.log('Static site build completed!');
   console.log(`Deploy contents from: ${publishDir}`);
+}
+
+// 新增：获取项目描述信息
+function getItemDescription(categoryDir: string, itemName: string): string {
+  const infoPath = path.join(categoryDir, itemName, 'info.txt');
+  try {
+    if (fs.existsSync(infoPath)) {
+      return fs.readFileSync(infoPath, 'utf-8').trim();
+    }
+  } catch (e) {
+    console.error(`Error reading description for ${itemName}:`, e);
+  }
+  return ''; // 默认返回空字符串
 }
 
 function scanCategory(categoryDir: string): PluginItem[] {
@@ -102,21 +96,10 @@ function scanCategory(categoryDir: string): PluginItem[] {
         .map(v => {
           const versionDir = path.join(itemDir, v.name);
           const files = fs.readdirSync(versionDir)
-            .filter(f => !f.endsWith('.json'));
-          
-          let info = {};
-          const infoPath = path.join(versionDir, 'info.json');
-          if (fs.existsSync(infoPath)) {
-            try {
-              info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-            } catch (e) {
-              console.error(`Error parsing info.json for ${versionDir}:`, e);
-            }
-          }
+            .filter(f => !f.endsWith('.txt'));
 
           return {
             version: v.name,
-            info,
             files
           };
         });

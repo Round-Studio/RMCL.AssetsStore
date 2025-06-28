@@ -6,8 +6,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 设置静态文件服务 - 现在直接从 publish 目录提供服务
-app.use('/down', express.static(path.join(__dirname, '../publish')));
-app.use('/publish', express.static(path.join(__dirname, '../publish')));
+app.use('/down', express.static(path.join(__dirname, '../publish/down')));
+app.use('/api', express.static(path.join(__dirname, '../publish/api')));
 
 // 支持的分类
 const CATEGORIES = ['plugin', 'skin', 'code'] as const;
